@@ -26,7 +26,8 @@ interface MonthlyBreakdownProps {
     restPercentage: number,
     restCommission: number,
     totalCommission: number,
-    products: { name: string; amount: number; percentage: number; commission: number }[]
+    products: { name: string; amount: number; percentage: number; commission: number }[],
+    clientId?: string | null
   ) => Promise<any>;
   onDeleteInvoice?: (id: string) => Promise<boolean>;
   onRefreshInvoices?: () => void;
@@ -84,8 +85,9 @@ export const MonthlyBreakdown = ({ invoices, clients, onUpdateInvoice, onDeleteI
 
   const filteredInvoices = useMemo(() => {
     const [year, month] = selectedMonth.split('-').map(Number);
-    const start = startOfMonth(new Date(year, month - 1, 1));
-    const end = endOfMonth(new Date(year, month - 1, 1));
+    // Usar el día 15 para asegurar que el mes es correcto en cualquier zona horaria
+    const start = startOfMonth(new Date(year, month - 1, 15));
+    const end = endOfMonth(new Date(year, month - 1, 15));
     
     return invoices.filter(inv => {
       const invDate = parseDateSafe(inv.invoice_date || inv.created_at);
@@ -149,11 +151,19 @@ export const MonthlyBreakdown = ({ invoices, clients, onUpdateInvoice, onDeleteI
       for (const invoice of filteredInvoices) {
         const productToUpdate = invoice.products?.find(p => p.product_name === productName);
         if (!productToUpdate) continue;
+        
+        // 1. Calcular nueva comisión del producto
         const newCommission = (productToUpdate.amount * newPercentage) / 100;
+        
+        // 2. Actualizar producto en la tabla invoice_products
         await supabase.from('invoice_products').update({ percentage: newPercentage, commission: newCommission }).eq('invoice_id', invoice.id).eq('product_name', productName);
+        
+        // 3. Recalcular total de comisión de la factura
         const otherProducts = invoice.products?.filter(p => p.product_name !== productName) || [];
         const otherCommissions = otherProducts.reduce((sum, p) => sum + Number(p.commission), 0);
         const newTotalCommission = otherCommissions + newCommission + Number(invoice.rest_commission);
+        
+        // 4. Actualizar total en la tabla invoices
         await supabase.from('invoices').update({ total_commission: newTotalCommission }).eq('id', invoice.id);
       }
       toast.success(`Porcentaje actualizado`);
@@ -317,11 +327,16 @@ export const MonthlyBreakdown = ({ invoices, clients, onUpdateInvoice, onDeleteI
                           <span className="font-medium text-foreground text-sm tabular-nums tracking-tight bg-background border border-border/50 px-2.5 py-1 rounded-md shadow-sm">
                             ${formatNumber(entry.amount)}
                           </span>
-                          {onUpdateInvoice && onDeleteInvoice && (
+                          {onUpdateInvoice && onDeleteInvoice && clients && (
+                            // La prop clients ya está disponible en InvoiceHistory (el padre de MonthlyBreakdown),
+                            // y aquí se la pasamos a EditInvoiceDialog
                             <EditInvoiceDialog
                               invoice={filteredInvoices.find(inv => inv.ncf === entry.ncf)!}
                               onUpdate={onUpdateInvoice}
                               onDelete={onDeleteInvoice}
+                              clients={clients}
+                              onAddClient={clients.find(c => c.id === entry.clientId)?.id ? (() => Promise.resolve(null)) : (() => Promise.resolve(null))} // Placeholder, la prop real debe venir del contexto superior
+                              onDeleteClient={() => Promise.resolve(false)} // Placeholder, la prop real debe venir del contexto superior
                               trigger={
                                 <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/40 hover:text-primary hover:bg-primary/5 rounded-full">
                                   <Pencil className="h-3.5 w-3.5" />
@@ -334,7 +349,7 @@ export const MonthlyBreakdown = ({ invoices, clients, onUpdateInvoice, onDeleteI
                     ))}
                   </div>
                   
-                  {/* Footer Summary - MEJORADO */}
+                  {/* Footer Summary */}
                   <div className="mt-auto px-6 py-5 bg-gradient-to-t from-muted/20 to-transparent border-t border-border/50">
                     <div className="flex items-end justify-between gap-4">
                       <div>
@@ -352,7 +367,7 @@ export const MonthlyBreakdown = ({ invoices, clients, onUpdateInvoice, onDeleteI
                              ${formatCurrency(product.totalCommission)}
                            </span>
                         </div>
-                        {/* Botón de ajuste integrado */}
+                        {/* Botón de ajuste integrado (con hover fix aplicado en su componente) */}
                         <EditGlobalPercentageDialog
                           productName={product.name}
                           currentPercentage={product.percentage}
@@ -399,8 +414,16 @@ export const MonthlyBreakdown = ({ invoices, clients, onUpdateInvoice, onDeleteI
                         </div>
                         <div className="flex items-center gap-3 text-right">
                           <span className="font-medium text-foreground text-sm tabular-nums tracking-tight bg-background border border-border/50 px-2.5 py-1 rounded-md shadow-sm">${formatNumber(entry.amount)}</span>
-                          {onUpdateInvoice && onDeleteInvoice && (
-                            <EditInvoiceDialog invoice={filteredInvoices.find(inv => inv.ncf === entry.ncf)!} onUpdate={onUpdateInvoice} onDelete={onDeleteInvoice} trigger={<Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/40 hover:text-primary hover:bg-primary/5 rounded-full"><Pencil className="h-3.5 w-3.5" /></Button>} />
+                          {onUpdateInvoice && onDeleteInvoice && clients && (
+                            <EditInvoiceDialog 
+                              invoice={filteredInvoices.find(inv => inv.ncf === entry.ncf)!} 
+                              onUpdate={onUpdateInvoice} 
+                              onDelete={onDeleteInvoice} 
+                              clients={clients}
+                              onAddClient={clients.find(c => c.id === entry.clientId)?.id ? (() => Promise.resolve(null)) : (() => Promise.resolve(null))}
+                              onDeleteClient={() => Promise.resolve(false)}
+                              trigger={<Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground/40 hover:text-primary hover:bg-primary/5 rounded-full"><Pencil className="h-3.5 w-3.5" /></Button>} 
+                            />
                           )}
                         </div>
                       </div>
@@ -426,23 +449,20 @@ export const MonthlyBreakdown = ({ invoices, clients, onUpdateInvoice, onDeleteI
               {/* Products Row with + signs */}
               <div className="flex flex-wrap items-center justify-center gap-6 mb-8">
                 {productsBreakdown.map((product, index) => (
-                  <div key={product.name} className="flex items-center gap-6">
-                    <div className="flex flex-col items-center p-4 bg-white rounded-xl border border-border/60 shadow-sm min-w-[160px] transform hover:-translate-y-1 transition-transform duration-300">
-                      <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest mb-2">{product.name}</p>
-                      <p className="text-2xl font-bold text-foreground">${formatCurrency(product.totalCommission)}</p>
+                  <div key={product.name} className="flex items-center gap-3">
+                    <div className="px-5 py-3 rounded-xl bg-white rounded-xl border border-border/60 shadow-sm min-w-[160px] transform hover:-translate-y-1 transition-transform duration-300">
+                      <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest mb-1">{product.name}</p>
+                      <p className="font-bold text-lg text-foreground">${formatCurrency(product.totalCommission)}</p>
                     </div>
-                    {/* Plus sign */}
-                    {(index < productsBreakdown.length - 1 || restBreakdown.totalAmount > 0) && (
-                      <span className="text-3xl text-muted-foreground/30 font-light">+</span>
-                    )}
+                    {(index < productsBreakdown.length - 1 || restBreakdown.totalAmount > 0) && <span className="text-3xl font-light text-muted-foreground/30">+</span>}
                   </div>
                 ))}
                 
                 {/* Rest box */}
                 {restBreakdown.totalAmount > 0 && (
-                  <div className="flex flex-col items-center p-4 bg-white rounded-xl border border-border/60 shadow-sm min-w-[160px] transform hover:-translate-y-1 transition-transform duration-300">
-                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest mb-2">Resto (25%)</p>
-                    <p className="text-2xl font-bold text-foreground">${formatCurrency(restBreakdown.totalCommission)}</p>
+                  <div className="px-5 py-3 rounded-xl bg-white rounded-xl border border-border/60 shadow-sm min-w-[160px] transform hover:-translate-y-1 transition-transform duration-300">
+                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest mb-1">Resto (25%)</p>
+                    <p className="font-bold text-lg text-foreground">${formatCurrency(restBreakdown.totalCommission)}</p>
                   </div>
                 )}
               </div>
