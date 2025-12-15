@@ -1,0 +1,102 @@
+import { formatNumber, formatCurrency } from "@/lib/formatters";
+
+interface Breakdown {
+  name: string;
+  label: string;
+  amount: number;
+  percentage: number;
+  commission: number;
+  color: string;
+}
+
+interface BreakdownTableProps {
+  totalInvoice: number;
+  breakdown: Breakdown[];
+  restAmount: number;
+  restPercentage: number;
+  restCommission: number;
+  totalCommission: number;
+}
+
+export const BreakdownTable = ({
+  totalInvoice,
+  breakdown,
+  restAmount,
+  restPercentage,
+  restCommission,
+  totalCommission,
+}: BreakdownTableProps) => {
+  const activeProducts = breakdown.filter(b => b.amount > 0);
+  
+  return (
+    <div className="bg-card border border-border rounded-xl overflow-hidden">
+      <div className="bg-muted/50 px-4 py-3 border-b border-border">
+        <h3 className="text-sm font-medium text-muted-foreground">Desglose de Comisión</h3>
+      </div>
+      
+      <div className="divide-y divide-border">
+        {/* Total Invoice Row */}
+        <div className="grid grid-cols-3 text-sm">
+          <div className="px-4 py-3 text-muted-foreground">Total Factura</div>
+          <div className="px-4 py-3 text-right font-mono text-foreground">${formatNumber(totalInvoice)}</div>
+          <div className="px-4 py-3 text-right text-muted-foreground">—</div>
+        </div>
+        
+        {/* Special Products */}
+        {activeProducts.map((item, idx) => {
+          // Generate high-contrast colors for better visibility
+          const contrastColors = [
+            { bg: 'bg-indigo-500', text: 'text-indigo-600 dark:text-indigo-400' },
+            { bg: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400' },
+            { bg: 'bg-amber-500', text: 'text-amber-600 dark:text-amber-500' },
+            { bg: 'bg-rose-500', text: 'text-rose-600 dark:text-rose-400' },
+            { bg: 'bg-cyan-500', text: 'text-cyan-600 dark:text-cyan-400' },
+            { bg: 'bg-violet-500', text: 'text-violet-600 dark:text-violet-400' },
+            { bg: 'bg-orange-500', text: 'text-orange-600 dark:text-orange-400' },
+            { bg: 'bg-teal-500', text: 'text-teal-600 dark:text-teal-400' },
+          ];
+          const colorSet = contrastColors[idx % contrastColors.length];
+          
+          return (
+            <div key={idx} className="grid grid-cols-3 text-sm">
+              <div className="px-4 py-3 flex items-center gap-2">
+                <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${colorSet.bg}`} />
+                <span className="text-foreground font-medium truncate">{item.label}</span>
+              </div>
+              <div className="px-4 py-3 text-right font-mono text-foreground">
+                ${formatNumber(item.amount)}
+              </div>
+              <div className={`px-4 py-3 text-right font-mono font-semibold ${colorSet.text}`}>
+                +${formatCurrency(item.commission)}
+                <span className="text-muted-foreground text-xs ml-1">({item.percentage}%)</span>
+              </div>
+            </div>
+          );
+        })}
+        
+        {/* Rest Row */}
+        {restAmount > 0 && (
+          <div className="grid grid-cols-3 text-sm">
+            <div className="px-4 py-3 text-muted-foreground">Resto</div>
+            <div className="px-4 py-3 text-right font-mono text-foreground">
+              ${formatNumber(restAmount)}
+            </div>
+            <div className="px-4 py-3 text-right font-mono text-foreground">
+              +${formatCurrency(restCommission)}
+              <span className="text-muted-foreground text-xs ml-1">({restPercentage}%)</span>
+            </div>
+          </div>
+        )}
+        
+        {/* Total Row */}
+        <div className="grid grid-cols-3 text-sm bg-success/10">
+          <div className="px-4 py-4 font-semibold text-foreground">Total Comisión</div>
+          <div className="px-4 py-4"></div>
+          <div className="px-4 py-4 text-right font-mono font-bold text-lg text-success">
+            ${formatCurrency(totalCommission)}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
