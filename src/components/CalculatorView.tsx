@@ -437,7 +437,7 @@ export const CalculatorView = ({
                       selectedClient={selectedClient}
                       onSelectClient={setSelectedClient}
                       onAddClient={onAddClient}
-                      onDeleteClient={deleteClient}
+                      onDeleteClient={onDeleteClient}
                     />
                     
                     <Button 
@@ -491,8 +491,8 @@ export const CalculatorView = ({
                       <ProductCatalogDialog 
                         products={catalogProducts}
                         onUpdateProduct={onUpdateProduct}
-                        onDeleteProduct={deleteProduct}
-                        onAddProduct={addProduct}
+                        onDeleteProduct={onDeleteProduct}
+                        onAddProduct={onAddProduct}
                       />
                     </div>
                     
