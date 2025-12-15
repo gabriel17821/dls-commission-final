@@ -6,7 +6,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Search, UserPlus, X, Check, User, Phone, Mail, Trash2 } from 'lucide-react';
 import { Client } from '@/hooks/useClients';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { createPortal } from 'react-dom';
+// Se elimina la dependencia de createPortal para usar posicionamiento absoluto
+// import { createPortal } from 'react-dom';
 
 interface ClientSelectorProps {
   clients: Client[];
@@ -31,7 +32,7 @@ export const ClientSelector = ({
   const [newEmail, setNewEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
-  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
+  // Se remueve el estado de posición ya que se usa posición absoluta
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -39,17 +40,7 @@ export const ClientSelector = ({
     c.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  // Update dropdown position - Necesario para la implementación de Portal
-  useEffect(() => {
-    if (showSuggestions && inputRef.current) {
-      const rect = inputRef.current.getBoundingClientRect();
-      setDropdownPosition({
-        top: rect.bottom + window.scrollY + 4,
-        left: rect.left + window.scrollX,
-        width: rect.width,
-      });
-    }
-  }, [showSuggestions, search]);
+  // Se remueve el useEffect para calcular la posición con fixed/portal
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -99,7 +90,7 @@ export const ClientSelector = ({
         break;
       case 'Enter':
         e.preventDefault();
-        if (highlightedIndex >= 0 && highlightedClients.length) {
+        if (highlightedIndex >= 0 && highlightedIndex < filteredClients.length) {
           handleSelectClient(filteredClients[highlightedIndex]);
         } else if (highlightedIndex === filteredClients.length || (filteredClients.length === 0 && search.trim())) {
           handleQuickAdd();
@@ -150,16 +141,11 @@ export const ClientSelector = ({
     }
   };
 
-  // Dropdown content rendered via portal (RESTAURADO)
-  const dropdownContent = shouldShowDropdown ? createPortal(
+  // Dropdown content rendered directly inside the component, positioned absolute
+  const dropdownContent = shouldShowDropdown ? (
     <div 
-      className="fixed bg-popover border border-border rounded-xl shadow-2xl overflow-hidden animate-in fade-in-0 zoom-in-95"
-      style={{ 
-        top: dropdownPosition.top,
-        left: dropdownPosition.left,
-        width: dropdownPosition.width,
-        zIndex: 99999,
-      }}
+      // [MODIFICADO] Usar position absolute anclado al contenedor relativo
+      className="absolute top-full left-0 right-0 mt-1 z-50 bg-popover border border-border rounded-xl shadow-2xl overflow-hidden animate-in fade-in-0 zoom-in-95"
       onMouseDown={(e) => e.stopPropagation()}
     >
       {filteredClients.length > 0 ? (
@@ -241,9 +227,9 @@ export const ClientSelector = ({
         </span>
         <span className="ml-auto text-xs text-muted-foreground">Enter</span>
       </button>
-    </div>,
-    document.body
+    </div>
   ) : null;
+
 
   return (
     <div className="space-y-3">
