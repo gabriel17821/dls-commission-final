@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Search, UserPlus, X, Check, User, Phone, Mail, Trash2 } from 'lucide-react';
 import { Client } from '@/hooks/useClients';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { createPortal } from 'react-dom'; // Importación correcta para el portal
+// REMOVIDO: import { createPortal } from 'react-dom'; // No se necesita para posicionamiento absoluto
 
 interface ClientSelectorProps {
   clients: Client[];
@@ -31,7 +31,7 @@ export const ClientSelector = ({
   const [newEmail, setNewEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
-  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
+  // REMOVIDO: se elimina el estado de posición ya que se usa posición absoluta
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -39,17 +39,7 @@ export const ClientSelector = ({
     c.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  // Update dropdown position
-  useEffect(() => {
-    if (showSuggestions && inputRef.current) {
-      const rect = inputRef.current.getBoundingClientRect();
-      setDropdownPosition({
-        top: rect.bottom + window.scrollY + 4,
-        left: rect.left + window.scrollX,
-        width: rect.width,
-      });
-    }
-  }, [showSuggestions, search]);
+  // REMOVIDO: se elimina el useEffect para calcular la posición
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -150,16 +140,10 @@ export const ClientSelector = ({
     }
   };
 
-  // Dropdown content rendered via portal
-  const dropdownContent = shouldShowDropdown ? createPortal(
+  // [MODIFICADO] El contenido del dropdown ahora se renderiza directamente y se posiciona absolutamente.
+  const dropdownContent = shouldShowDropdown ? (
     <div 
-      className="fixed bg-popover border border-border rounded-xl shadow-2xl overflow-hidden animate-in fade-in-0 zoom-in-95"
-      style={{ 
-        top: dropdownPosition.top,
-        left: dropdownPosition.left,
-        width: dropdownPosition.width,
-        zIndex: 99999,
-      }}
+      className="absolute top-full left-0 right-0 mt-1 z-50 bg-popover border border-border rounded-xl shadow-2xl overflow-hidden animate-in fade-in-0 zoom-in-95"
       onMouseDown={(e) => e.stopPropagation()}
     >
       {filteredClients.length > 0 ? (
@@ -241,9 +225,9 @@ export const ClientSelector = ({
         </span>
         <span className="ml-auto text-xs text-muted-foreground">Enter</span>
       </button>
-    </div>,
-    document.body
+    </div>
   ) : null;
+
 
   return (
     <div className="space-y-3">
@@ -272,6 +256,7 @@ export const ClientSelector = ({
           </Button>
         </div>
       ) : (
+        // [MODIFICADO] El contenedor debe ser relativo para que el dropdown se posicione correctamente
         <div ref={containerRef} className="relative">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
