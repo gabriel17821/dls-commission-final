@@ -44,7 +44,7 @@ export const EditGlobalPercentageDialog = ({
         <Button 
           variant="ghost" 
           size="icon" 
-          // [MODIFICADO] Color del icono ajustado a esmeralda para el hover
+          // [MODIFICADO] Clases para un hover verde/esmeralda
           className="h-7 w-7 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100/50 dark:hover:bg-emerald-900/50 transition-colors"
           title="Editar porcentaje global"
         >
